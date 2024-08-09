@@ -18,22 +18,21 @@ def getCaption():
     )
     return response
 
+def parseMessageText():
+    # caption = messageText + hashtag
+    return
+
 def getRandomVideo():
     return
 
 def getRandomMusic():
     return
 
-class builder:
-    # def __init__(self, video, music, caption, quote) -> None:
-    #     self.video = video
-    #     self.music = music
-    #     self.caption = caption
-    #     self.quote = quote
+def build():
+    # get all the elements
 
-    
-    def build():
-        return
+    # build video from the elements
+    return
 
 
 if __name__ == "__main__":
