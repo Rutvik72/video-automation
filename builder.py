@@ -2,22 +2,21 @@ import random
 import os
 import requests
 import google.generativeai as genai
-# import cohere
-
 import json
+from pexelsapi.pexels import Pexels
 
 # Constants
-API_KEY = "AIzaSyDv0bV2dWMdtEgJOxcCfiWr0lLHlb3QU2U"
+GENAI_API_KEY = "AIzaSyDv0bV2dWMdtEgJOxcCfiWr0lLHlb3QU2U"
+PEXEL_API_KEY = "5vDSTVQlrm84J9teecafE7XDM6fZCqLe6U9hDdVLenn2Az6SRRzcV6U6"
 
 def getQuote():
     response = requests.get('https://zenquotes.io/api/random')
     quote = response.json()[0]
-    # print(quote)
     return quote
 
 def getCaption(quote):
-    inputMessage = quote['q'] + " - " + quote['a']
-    genai.configure(api_key=API_KEY)
+
+    genai.configure(api_key=GENAI_API_KEY)
     model = genai.GenerativeModel('gemini-1.5-flash', generation_config={"response_mime_type": "application/json"})
 
     prompt = quote['q'] + " - " + quote['a'] + """
@@ -40,6 +39,14 @@ def parseMessageText(response):
     return response_json['caption_text'] + " " + response_json['hashtags']
 
 def getRandomVideo():
+    pexel = Pexels(PEXEL_API_KEY)
+    response = pexel.search_videos(query='nature', orientation='portrait', page=1, per_page=5)
+    print(response['videos'][0]["id"])
+    get_video = pexel.get_video(get_id=response['videos'][0]["id"])
+    print(get_video)
+    download_video = requests.get("https://www.pexels.com/video/" + str(get_video["id"]) + "/download/")
+    with open(str(get_video['id']), 'wb') as outfile:
+        outfile.write(download_video.content)
     return
 
 def getRandomMusic():
@@ -47,7 +54,8 @@ def getRandomMusic():
 
 def build():
     # get all the elements
-    print(getCaption(getQuote()))
+    # print(getCaption(getQuote()))
+    getRandomVideo()
 
     # build video from the elements
     return
