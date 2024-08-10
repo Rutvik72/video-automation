@@ -3,6 +3,7 @@ import os
 import requests
 import google.generativeai as genai
 import json
+import pprint
 from pexelsapi.pexels import Pexels
 
 # Constants
@@ -39,14 +40,28 @@ def parseMessageText(response):
     return response_json['caption_text'] + " " + response_json['hashtags']
 
 def getRandomVideo():
+    downloadNewVideos()
+
+    return
+
+def downloadNewVideos():
     pexel = Pexels(PEXEL_API_KEY)
+    path = "./assets/videos/"
+    idList = []
     response = pexel.search_videos(query='nature', orientation='portrait', page=1, per_page=5)
-    print(response['videos'][0]["id"])
+    # pprint.pp(response)
+    for videos in response["videos"]:
+        id = videos["id"]
+        print(id)
+        if id not in idList:
+            idList.append(id)
+    print(idList)
     get_video = pexel.get_video(get_id=response['videos'][0]["id"])
-    print(get_video)
-    download_video = requests.get("https://www.pexels.com/video/" + str(get_video["id"]) + "/download/")
-    with open(str(get_video['id']), 'wb') as outfile:
-        outfile.write(download_video.content)
+    # pprint.pp(get_video)
+    download_video = requests.get(get_video['video_files'][0]['link'], stream=True)
+    with open(path + str(get_video['id'])+".mp4", 'wb') as outfile:
+        for chunk in download_video.iter_content(chunk_size=256):
+            outfile.write(chunk)
     return
 
 def getRandomMusic():
