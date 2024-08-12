@@ -9,6 +9,37 @@ from pexelsapi.pexels import Pexels
 # Constants
 GENAI_API_KEY = "AIzaSyDv0bV2dWMdtEgJOxcCfiWr0lLHlb3QU2U"
 PEXEL_API_KEY = "5vDSTVQlrm84J9teecafE7XDM6fZCqLe6U9hDdVLenn2Az6SRRzcV6U6"
+idList = [5896379, 4812203, 5147455, 8856785, 8859849]
+
+#Helper Functions
+def parseMessageText(response):
+    response_json = json.loads(response)
+    return response_json['caption_text'] + " " + response_json['hashtags']
+
+def videoIdInList(id):
+    if id not in idList:
+        idList.append(id)
+        return False
+    return True
+
+def checkForNewVideos():
+    pexel = Pexels(PEXEL_API_KEY)
+    path = "./assets/videos/"
+    newVideosFlag = False
+
+    response = pexel.search_videos(query='nature', orientation='portrait', page=1, per_page=5)
+    # pprint.pp(response)
+    for videos in response["videos"]:
+        id = videos["id"]
+        if not videoIdInList(id):
+            get_video = pexel.get_video(get_id=id)
+            download_video = requests.get(get_video['video_files'][0]['link'], stream=True)
+            with open(path + str(get_video["id"]) +".mp4", 'wb') as outfile:
+                for chunk in download_video.iter_content(chunk_size=256):
+                    outfile.write(chunk)
+            newVideosFlag = True
+    return newVideosFlag
+
 
 def getQuote():
     response = requests.get('https://zenquotes.io/api/random')
@@ -35,38 +66,20 @@ def getCaption(quote):
     caption = parseMessageText(response)
     return response
 
-def parseMessageText(response):
-    response_json = json.loads(response)
-    return response_json['caption_text'] + " " + response_json['hashtags']
-
 def getRandomVideo():
-    downloadNewVideos()
+    
+    if checkForNewVideos():
+        randomVideoId = idList[-1]
+    else:
+        randomVideoId = random.choice(idList)
+    print(randomVideoId)
+    return randomVideoId
 
-    return
-
-def downloadNewVideos():
-    pexel = Pexels(PEXEL_API_KEY)
-    path = "./assets/videos/"
-    idList = []
-    response = pexel.search_videos(query='nature', orientation='portrait', page=1, per_page=5)
-    # pprint.pp(response)
-    for videos in response["videos"]:
-        id = videos["id"]
-        print(id)
-        if id not in idList:
-            idList.append(id)
-    print(idList)
-    get_video = pexel.get_video(get_id=response['videos'][0]["id"])
-    # pprint.pp(get_video)
-    download_video = requests.get(get_video['video_files'][0]['link'], stream=True)
-    with open(path + str(get_video['id'])+".mp4", 'wb') as outfile:
-        for chunk in download_video.iter_content(chunk_size=256):
-            outfile.write(chunk)
-    return
 
 def getRandomMusic():
     return
 
+#Builder Function
 def build():
     # get all the elements
     # print(getCaption(getQuote()))
