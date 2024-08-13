@@ -10,14 +10,44 @@ import moviepy.editor as me
 import moviepy.video as mv
 import textwrap
 from PIL import ImageFont
+from time import gmtime, strftime
 
-# Constants
+#API
 GENAI_API_KEY = "AIzaSyDv0bV2dWMdtEgJOxcCfiWr0lLHlb3QU2U"
 PEXEL_API_KEY = "5vDSTVQlrm84J9teecafE7XDM6fZCqLe6U9hDdVLenn2Az6SRRzcV6U6"
+
+# Constants
+genai.configure(api_key=GENAI_API_KEY)
 idList = [5896379, 4812203, 5147455, 8856785, 8859849]
-path = "./assets/videos/"
+pathToVideos = "./assets/videos/"
+
+#Text Constants
+textFont = "arial.ttf"
+textFontSizeLambda = lambda clipWidth: pickFontSize(clipWidth)
+textColor = 'yellow'
+textCharSpace = 8
+
 
 #Helper Functions
+
+def pickFontSize(clipWidth):
+    dictOfFontSize = {
+        500: 50,
+        700: 60,
+        900: 70,
+        1100: 90,
+        1500: 120,
+        2000: 150
+    }
+
+    for key in dictOfFontSize:
+        if clipWidth < key:
+            fontSize = dictOfFontSize[key]
+            break
+        else:
+            fontSize = 160
+
+    return fontSize
 
 def soft_wrap_text(
     text: str, 
@@ -26,13 +56,10 @@ def soft_wrap_text(
     font_family: str, 
     max_width: int,
 ):
-    # Note that font_family has to be an absolut path to your .ttf/.otf
+    
     image_font = ImageFont.truetype(font_family, fontsize) 
-
-    # I am not sure my letter spacing calculation is accurate
     text_width = image_font.getlength(text) + (len(text)-1) * letter_spacing
-    print(len(text))
-    print(text_width)
+
     letter_width = text_width / len(text)
 
     if text_width < max_width:
@@ -42,27 +69,34 @@ def soft_wrap_text(
     wrapped_text = textwrap.fill(text, width=max_chars)
     return wrapped_text
 
-def combineVideoText():
+def combineVideoText(quote, videoID):
 
-    clip = me.VideoFileClip(path + "5147455.mp4")
+    clip = me.VideoFileClip(pathToVideos + str(videoID) + ".mp4")
+    if clip.duration > 15:
+        clip.subclip(0,15)
     clip_duration = clip.duration
-    print(clip.size)
-    width = clip.size[0]
-    height = clip.size[1]
-    print(clip_duration)
-    wrap_title = soft_wrap_text("You must be the change you wish to see in the world. -Mahatma Gandhi",
-                                font_family="arial.ttf",
-                                fontsize=60,
-                                letter_spacing=8,
+    clip.fx(me.vfx.colorx, 0.5)
+    width, height = clip.size[0], clip.size[1]
+    textFontSize = textFontSizeLambda(width)
+    wrap_title = soft_wrap_text(quote,
+                                font_family=textFont,
+                                fontsize=textFontSize,
+                                letter_spacing=textCharSpace,
                                 max_width=width-100)
     
-    print(wrap_title)
-    txt_clip = (me.TextClip(wrap_title, fontsize=60, color='yellow',kerning=8, size=(width, height))
+    txt_clip = (me.TextClip(wrap_title, 
+                            fontsize=textFontSize, 
+                            color=textColor,
+                            kerning=textCharSpace, 
+                            size=(width, height))
                 .set_duration(clip_duration)
                 .set_position("center"))
+    
     txt_fading = txt_clip.crossfadein(1)
     video = me.CompositeVideoClip([clip, txt_fading])
-    video.write_videofile("./src/text.mp4", fps=30)
+    videoName = strftime("%Y-%m-%d-%H-%M-%S", gmtime())
+    print(videoName)
+    video.write_videofile("./src/" + videoName + ".mp4", fps=30)
     
     return
 
@@ -78,17 +112,15 @@ def videoIdInList(id):
 
 def checkForNewVideos():
     pexel = Pexels(PEXEL_API_KEY)
-    path = "./assets/videos/"
     newVideosFlag = False
 
     response = pexel.search_videos(query='nature', orientation='portrait', page=1, per_page=5)
-    # pprint.pp(response)
     for videos in response["videos"]:
         id = videos["id"]
         if not videoIdInList(id):
             get_video = pexel.get_video(get_id=id)
             download_video = requests.get(get_video['video_files'][0]['link'], stream=True)
-            with open(path + str(get_video["id"]) +".mp4", 'wb') as outfile:
+            with open(pathToVideos + str(get_video["id"]) +".mp4", 'wb') as outfile:
                 for chunk in download_video.iter_content(chunk_size=256):
                     outfile.write(chunk)
             newVideosFlag = True
@@ -102,7 +134,6 @@ def getQuote():
 
 def getCaption(quote):
 
-    genai.configure(api_key=GENAI_API_KEY)
     model = genai.GenerativeModel('gemini-1.5-flash', generation_config={"response_mime_type": "application/json"})
 
     prompt = quote['q'] + " - " + quote['a'] + """
@@ -118,7 +149,7 @@ def getCaption(quote):
 
     response = model.generate_content(prompt).text
     caption = parseMessageText(response)
-    return response
+    return caption
 
 def getRandomVideo():
     
@@ -127,7 +158,6 @@ def getRandomVideo():
     else:
         randomVideoId = random.choice(idList)
     print(randomVideoId)
-    combineVideoText()
     return randomVideoId
 
 
@@ -136,12 +166,18 @@ def getRandomMusic():
     return
 
 
-
 #Builder Function
 def build():
     # get all the elements
     # print(getCaption(getQuote()))
-    getRandomVideo()
+    randomQuoteStr = "You must be the change you wish to see in the world. -Mahatma Gandhi"
+    randomVideoID = getRandomVideo()
+    # randomQuote = getQuote()
+    # randomQuoteStr = randomQuote['q'] + " - " + randomQuote['a']
+    combineVideoText(randomQuoteStr, randomVideoID)
+    # for i in idList:
+    #      clip = me.VideoFileClip(pathToVideos + str(i) + ".mp4")
+    #      print(textFontSize(clip.size[0]))
 
     # build video from the elements
     return
