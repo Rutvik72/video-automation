@@ -5,13 +5,67 @@ import google.generativeai as genai
 import json
 import pprint
 from pexelsapi.pexels import Pexels
+# from moviepy.editor import TextClip, ImageClip, CompositeVideoClip, ColorClip, VideoClip, VideoFileClip
+import moviepy.editor as me
+import moviepy.video as mv
+import textwrap
+from PIL import ImageFont
 
 # Constants
 GENAI_API_KEY = "AIzaSyDv0bV2dWMdtEgJOxcCfiWr0lLHlb3QU2U"
 PEXEL_API_KEY = "5vDSTVQlrm84J9teecafE7XDM6fZCqLe6U9hDdVLenn2Az6SRRzcV6U6"
 idList = [5896379, 4812203, 5147455, 8856785, 8859849]
+path = "./assets/videos/"
 
 #Helper Functions
+
+def soft_wrap_text(
+    text: str, 
+    fontsize: int, 
+    letter_spacing: int, 
+    font_family: str, 
+    max_width: int,
+):
+    # Note that font_family has to be an absolut path to your .ttf/.otf
+    image_font = ImageFont.truetype(font_family, fontsize) 
+
+    # I am not sure my letter spacing calculation is accurate
+    text_width = image_font.getlength(text) + (len(text)-1) * letter_spacing
+    print(len(text))
+    print(text_width)
+    letter_width = text_width / len(text)
+
+    if text_width < max_width:
+        return text
+
+    max_chars = max_width / letter_width
+    wrapped_text = textwrap.fill(text, width=max_chars)
+    return wrapped_text
+
+def combineVideoText():
+
+    clip = me.VideoFileClip(path + "5147455.mp4")
+    clip_duration = clip.duration
+    print(clip.size)
+    width = clip.size[0]
+    height = clip.size[1]
+    print(clip_duration)
+    wrap_title = soft_wrap_text("You must be the change you wish to see in the world. -Mahatma Gandhi",
+                                font_family="arial.ttf",
+                                fontsize=60,
+                                letter_spacing=8,
+                                max_width=width-100)
+    
+    print(wrap_title)
+    txt_clip = (me.TextClip(wrap_title, fontsize=60, color='yellow',kerning=8, size=(width, height))
+                .set_duration(clip_duration)
+                .set_position("center"))
+    txt_fading = txt_clip.crossfadein(1)
+    video = me.CompositeVideoClip([clip, txt_fading])
+    video.write_videofile("./src/text.mp4", fps=30)
+    
+    return
+
 def parseMessageText(response):
     response_json = json.loads(response)
     return response_json['caption_text'] + " " + response_json['hashtags']
@@ -73,11 +127,15 @@ def getRandomVideo():
     else:
         randomVideoId = random.choice(idList)
     print(randomVideoId)
+    combineVideoText()
     return randomVideoId
 
 
 def getRandomMusic():
+
     return
+
+
 
 #Builder Function
 def build():
