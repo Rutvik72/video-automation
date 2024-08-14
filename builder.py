@@ -25,24 +25,26 @@ pathToVideos = "./assets/videos/"
 textFont = "arial.ttf"
 textFontSizeLambda = lambda clipWidth: pickFontSize(clipWidth)
 textColor = 'yellow'
-textCharSpace = 8
+textCharSpace = 5
 
 
 #Helper Functions
 
 def pickFontSize(clipWidth):
     dictOfFontSize = {
-        500: 50,
-        700: 60,
-        900: 70,
-        1100: 90,
-        1500: 120,
-        2000: 150
+        500: 20,
+        600: 35,
+        700: 50,
+        900: 60,
+        1100: 80,
+        1500: 100,
+        2000: 125
     }
 
     for key in dictOfFontSize:
         if clipWidth < key:
             fontSize = dictOfFontSize[key]
+            print(fontSize)
             break
         else:
             fontSize = 160
@@ -75,7 +77,7 @@ def combineVideoText(quote, videoID):
     if clip.duration > 15:
         clip.subclip(0,15)
     clip_duration = clip.duration
-    clip.fx(me.vfx.colorx, 0.5)
+    clip.fx(me.vfx.colorx, 1)
     width, height = clip.size[0], clip.size[1]
     textFontSize = textFontSizeLambda(width)
     wrap_title = soft_wrap_text(quote,
@@ -170,16 +172,17 @@ def getRandomMusic():
 def build():
     # get all the elements
     # print(getCaption(getQuote()))
-    randomQuoteStr = "You must be the change you wish to see in the world. -Mahatma Gandhi"
+    # randomQuoteStr = "You must be the change you wish to see in the world. -Mahatma Gandhi"
     randomVideoID = getRandomVideo()
-    # randomQuote = getQuote()
-    # randomQuoteStr = randomQuote['q'] + " - " + randomQuote['a']
+    randomQuote = getQuote()
+    randomQuoteStr = randomQuote['q'] + " - " + randomQuote['a']
     combineVideoText(randomQuoteStr, randomVideoID)
     # for i in idList:
     #      clip = me.VideoFileClip(pathToVideos + str(i) + ".mp4")
     #      print(textFontSize(clip.size[0]))
 
     # build video from the elements
+    print(getCaption(randomQuote))
     return
 
 
