@@ -13,8 +13,7 @@ from PIL import ImageFont
 from time import gmtime, strftime
 
 #API
-GENAI_API_KEY = "AIzaSyDv0bV2dWMdtEgJOxcCfiWr0lLHlb3QU2U"
-PEXEL_API_KEY = "5vDSTVQlrm84J9teecafE7XDM6fZCqLe6U9hDdVLenn2Az6SRRzcV6U6"
+
 
 # Constants
 genai.configure(api_key=GENAI_API_KEY)
