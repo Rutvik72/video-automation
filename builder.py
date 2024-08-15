@@ -19,8 +19,14 @@ PEXEL_API_KEY = "5vDSTVQlrm84J9teecafE7XDM6fZCqLe6U9hDdVLenn2Az6SRRzcV6U6"
 
 # Constants
 genai.configure(api_key=GENAI_API_KEY)
-idList = [4678261, 7297870, 6550972, 8045821, 5145199, 3226454, 5198956, 5544054, 5893890, 6521673, 5829173, 5829170, 5828488, 5829168, 5896379, 4812203, 5147455, 8856785, 8859849]
+safety_settings = {
+    genai.types.HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT : genai.types.HarmBlockThreshold.BLOCK_LOW_AND_ABOVE,
+    genai.types.HarmCategory.HARM_CATEGORY_HARASSMENT : genai.types.HarmBlockThreshold.BLOCK_NONE,
+    genai.types.HarmCategory.HARM_CATEGORY_HATE_SPEECH : genai.types.HarmBlockThreshold.BLOCK_NONE,
+    genai.types.HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT : genai.types.HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
+}
 
+idList = [4678261, 7297870, 6550972, 8045821, 5145199, 3226454, 5198956, 5544054, 5893890, 6521673, 5829173, 5829170, 5828488, 5829168, 5896379, 4812203, 5147455, 8856785, 8859849]
 pathToVideos = "./assets/videos/"
 
 #Text Constants
@@ -28,6 +34,7 @@ textFont = "arial.ttf"
 textFontSizeLambda = lambda clipWidth: pickFontSize(clipWidth)
 textColor = 'yellow'
 textCharSpace = 5
+
 
 
 #Helper Functions
@@ -157,19 +164,25 @@ def getQuote():
 
 def getCaption(quote):
 
-    model = genai.GenerativeModel('gemini-1.5-flash', generation_config={"response_mime_type": "application/json"})
-
-    prompt = quote['q'] + " - " + quote['a'] + """
+    model = genai.GenerativeModel('gemini-1.5-flash', generation_config={"response_mime_type": "application/json"}, safety_settings=safety_settings)
+#['q'] + " - " + quote['a'] 
+    prompt = quote + """
         Create a caption
         Using this JSON scheme:
             Caption Text = {"caption_text", str},
             Hashtags = {"hashtags": str}
-
+        1. caption should only have text no hashtags
         2. hashtag should only have hashtags
     """
+    print(len(prompt))
+    print(prompt)
+    
+    try:
+        response = model.generate_content(prompt).text
+        caption = parseMessageText(response)
+    except UnicodeEncodeError:
+        caption = "Follow for more daily quotes and motivation. #power #mind #peace #motivation"
 
-    response = model.generate_content(prompt).text
-    caption = parseMessageText(response)
     return caption
 
 def getRandomVideo():
@@ -178,7 +191,6 @@ def getRandomVideo():
     newVideoBool = False
     for query in queryList:
         newVideoBool = checkForNewVideos(query) | newVideoBool
-        # print(query, "---------------------------------------------------")
 
     if newVideoBool:
         randomVideoId = idList[-1]
@@ -196,14 +208,14 @@ def getRandomMusic():
 
 #Builder Function
 def build():
-    # randomQuoteStr = "You must be the change you wish to see in the world. -Mahatma Gandhi"
-    randomVideoID = getRandomVideo()
+    randomQuoteStr = "Prefer to be defeated in the presence of the wise than to excel among fools. - Dogen"
+    # randomVideoID = getRandomVideo()
     randomQuote = getQuote()
-    combineVideoText(randomQuote['q'], randomQuote['a'], randomVideoID)
+    # combineVideoText(randomQuote['q'], randomQuote['a'], randomVideoID)
     # for i in idList:
     #      clip = me.VideoFileClip(pathToVideos + str(i) + ".mp4")
     #      print(i, clip.size)
-    print(getCaption(randomQuote))
+    print(getCaption(randomQuoteStr))
 
     return
 
