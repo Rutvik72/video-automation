@@ -30,7 +30,7 @@ idList = [4678261, 7297870, 6550972, 8045821, 5145199, 3226454, 5198956, 5544054
 pathToVideos = "./assets/videos/"
 
 #Text Constants
-textFont = "arial.ttf"
+textFont = "./assets/font/Lato-Black.ttf"
 textFontSizeLambda = lambda clipWidth: pickFontSize(clipWidth)
 textColor = 'yellow'
 textCharSpace = 5
@@ -110,7 +110,8 @@ def combineVideoText(quote, author, videoID):
     pprint.pp(wrapped_text)
     
     txt_clip = (me.TextClip(wrapped_text, 
-                            fontsize=textFontSize, 
+                            fontsize=textFontSize,
+                            font=textFont,
                             color=textColor,
                             kerning=textCharSpace, 
                             size=(width, height))
@@ -165,8 +166,7 @@ def getQuote():
 def getCaption(quote):
 
     model = genai.GenerativeModel('gemini-1.5-flash', generation_config={"response_mime_type": "application/json"}, safety_settings=safety_settings)
-#['q'] + " - " + quote['a'] 
-    prompt = quote + """
+    prompt = quote['q'] + " - " + quote['a']  + """
         Create a caption
         Using this JSON scheme:
             Caption Text = {"caption_text", str},
@@ -208,14 +208,14 @@ def getRandomMusic():
 
 #Builder Function
 def build():
-    randomQuoteStr = "Prefer to be defeated in the presence of the wise than to excel among fools. - Dogen"
-    # randomVideoID = getRandomVideo()
+    # randomQuoteStr = "Prefer to be defeated in the presence of the wise than to excel among fools. - Dogen"
+    randomVideoID = getRandomVideo()
     randomQuote = getQuote()
-    # combineVideoText(randomQuote['q'], randomQuote['a'], randomVideoID)
+    combineVideoText(randomQuote['q'], randomQuote['a'], randomVideoID)
     # for i in idList:
     #      clip = me.VideoFileClip(pathToVideos + str(i) + ".mp4")
     #      print(i, clip.size)
-    print(getCaption(randomQuoteStr))
+    print(getCaption(randomQuote))
 
     return
 
