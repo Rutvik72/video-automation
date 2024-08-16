@@ -1,1 +1,3 @@
-api/apikeys.py
+api/*
+*.mp4
+__pycache__

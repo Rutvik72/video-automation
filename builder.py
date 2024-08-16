@@ -1,23 +1,22 @@
 import random
-import os
 import requests
 import google.generativeai as genai
 import json
 import pprint
 from pexelsapi.pexels import Pexels
-# from moviepy.editor import TextClip, ImageClip, CompositeVideoClip, ColorClip, VideoClip, VideoFileClip
 import moviepy.editor as me
-import moviepy.video as mv
 import textwrap
 from PIL import ImageFont
 from time import gmtime, strftime
 import math
+import os
+from pathlib import Path
 
-#API - temporary and will be changed
+# API - temporary and will be changed
 GENAI_API_KEY = "AIzaSyDv0bV2dWMdtEgJOxcCfiWr0lLHlb3QU2U"
 PEXEL_API_KEY = "5vDSTVQlrm84J9teecafE7XDM6fZCqLe6U9hDdVLenn2Az6SRRzcV6U6"
 
-# Constants
+# GenAi configuration
 genai.configure(api_key=GENAI_API_KEY)
 safety_settings = {
     genai.types.HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT : genai.types.HarmBlockThreshold.BLOCK_LOW_AND_ABOVE,
@@ -26,19 +25,26 @@ safety_settings = {
     genai.types.HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT : genai.types.HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
 }
 
+# Constants
 idList = [4678261, 7297870, 6550972, 8045821, 5145199, 3226454, 5198956, 5544054, 5893890, 6521673, 5829173, 5829170, 5828488, 5829168, 5896379, 4812203, 5147455, 8856785, 8859849]
+dir_path = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+# pathToVideos = os.path.join(dir_path, "assets\\videos\\")
+# pathTo_readytopost = os.path.join(dir_path, "src\\readytopost\\")
 pathToVideos = "./assets/videos/"
+pathTo_readytopost = "./src/readytopost/"
 
-#Text Constants
+# Text Constants
 textFont = "./assets/font/Lato-Black.ttf"
+# print(textFont)
+# print(me.TextClip.list('font'))
 textFontSizeLambda = lambda clipWidth: pickFontSize(clipWidth)
 textColor = 'yellow'
 textCharSpace = 5
+clip_Length = 15
 
-
-
-#Helper Functions
-
+################
+# Helper Functions
+################
 def pickFontSize(clipWidth):
     dictOfFontSize = {
         600: 35,
@@ -63,9 +69,8 @@ def soft_wrap_text(
     fontsize: int, 
     letter_spacing: int, 
     font_family: str, 
-    max_width: int,
-):
-    
+    max_width: int):
+
     image_font = ImageFont.truetype(font_family, fontsize) 
     text_width = image_font.getlength(text) + (len(text)-1) * letter_spacing
 
@@ -85,7 +90,7 @@ def combineVideoText(quote, author, videoID):
 
     clipLength = 15/clip_duration
     if clipLength > 1:
-        numOfClips = [clip] * math.ceil(clipLength)
+        numOfClips = [clip] * math.ceil(clip_Length)
         clip = me.concatenate_videoclips(numOfClips)
 
     clip = clip.subclip(0,15)
@@ -121,9 +126,9 @@ def combineVideoText(quote, author, videoID):
     txt_fading = txt_clip.crossfadein(1)
     video = me.CompositeVideoClip([clip, txt_fading])
     videoName = strftime("%Y-%m-%d-%H-%M-%S", gmtime())
-    video.write_videofile("./src/readytopost/" + videoName + ".mp4", fps=30)
+    video.write_videofile(pathTo_readytopost + videoName + ".mp4", fps=30)
     
-    return
+    return  videoName + ".mp4"
 
 def parseMessageText(response):
     response_json = json.loads(response)
@@ -157,14 +162,25 @@ def checkForNewVideos(queryTag):
 
     return newVideosFlag
 
-
+################
+# Getter functions
+################
 def getQuote():
+    # The getQuote function calls the ZenQuote API which returns a json
+    # Returns string in json formate
+
     response = requests.get('https://zenquotes.io/api/random')
     quote = response.json()[0]
     return quote
 
-def getCaption(quote):
 
+def getCaption(quote):
+    # The getCaption function calls on the Googles Gemini AI, known as generative model.
+    # A prompt containing the quote and with reponse guidelines is sent to Gemini, which returns
+    # a caption in json string format. Then a parse helper function is called to grab the right string
+    # and return caption with hashtag as singular string.
+    # Returns string
+    
     model = genai.GenerativeModel('gemini-1.5-flash', generation_config={"response_mime_type": "application/json"}, safety_settings=safety_settings)
     prompt = quote['q'] + " - " + quote['a']  + """
         Create a caption
@@ -174,8 +190,6 @@ def getCaption(quote):
         1. caption should only have text no hashtags
         2. hashtag should only have hashtags
     """
-    print(len(prompt))
-    print(prompt)
     
     try:
         response = model.generate_content(prompt).text
@@ -186,6 +200,10 @@ def getCaption(quote):
     return caption
 
 def getRandomVideo():
+    # The getRandomVideo function checks to see if there are new videos for 4 different searches,
+    # if so, the new videos are downloaded to the assests/videos folder and the lastest one is picked,
+    # otherwise, it randomly selects a video from idList and returns it.
+    # Returns int
 
     queryList = ['peaceful', "cars", "urban architecture", "nature"]
     newVideoBool = False
@@ -202,23 +220,19 @@ def getRandomVideo():
     return randomVideoId
 
 def getRandomMusic():
-
     return
 
-
+################
 #Builder Function
-def build():
-    # randomQuoteStr = "Prefer to be defeated in the presence of the wise than to excel among fools. - Dogen"
-    randomVideoID = getRandomVideo()
-    randomQuote = getQuote()
-    combineVideoText(randomQuote['q'], randomQuote['a'], randomVideoID)
-    # for i in idList:
-    #      clip = me.VideoFileClip(pathToVideos + str(i) + ".mp4")
-    #      print(i, clip.size)
-    print(getCaption(randomQuote))
+################
+def build(randomQuote, randomVideoID):
+    # The build function is used to centralize the creation of new videos
+    # based on quote recieved and video picked
+    
+    try:
+        videoName = combineVideoText(randomQuote['q'], randomQuote['a'], randomVideoID)
+    except OSError:
+        videoName = combineVideoText(randomQuote['q'], randomQuote['a'], randomVideoID)
 
-    return
+    return videoName
 
-
-if __name__ == "__main__":
-    build()
