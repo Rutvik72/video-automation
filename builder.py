@@ -11,10 +11,7 @@ from time import gmtime, strftime
 import math
 import os
 from pathlib import Path
-
-# API - temporary and will be changed
-GENAI_API_KEY = "AIzaSyDv0bV2dWMdtEgJOxcCfiWr0lLHlb3QU2U"
-PEXEL_API_KEY = "5vDSTVQlrm84J9teecafE7XDM6fZCqLe6U9hDdVLenn2Az6SRRzcV6U6"
+from api.apikeys import GENAI_API_KEY, PEXEL_API_KEY
 
 # GenAi configuration
 genai.configure(api_key=GENAI_API_KEY)
@@ -27,7 +24,7 @@ safety_settings = {
 
 # Constants
 idList = [4678261, 7297870, 6550972, 8045821, 5145199, 3226454, 5198956, 5544054, 5893890, 6521673, 5829173, 5829170, 5828488, 5829168, 5896379, 4812203, 5147455, 8856785, 8859849]
-dir_path = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+# dir_path = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 # pathToVideos = os.path.join(dir_path, "assets\\videos\\")
 # pathTo_readytopost = os.path.join(dir_path, "src\\readytopost\\")
 pathToVideos = "./assets/videos/"
@@ -132,7 +129,14 @@ def combineVideoText(quote, author, videoID):
 
 def parseMessageText(response):
     response_json = json.loads(response)
-    return response_json['caption_text'] + " " + response_json['hashtags']
+    print(response_json)
+    try:
+        quote_title = response_json["quote_title"]
+        quote_caption = response_json['caption_text'] + " " + response_json['hashtags']
+    except KeyError:
+        quote_title = response_json["Quote Title"]["quote_title"]
+        quote_caption = response_json['Caption Text']['caption_text'] + " " + response_json['Hashtags']['hashtags']
+    return quote_title, quote_caption
 
 def videoIdInList(id):
     if id not in idList:
@@ -180,11 +184,13 @@ def getCaption(quote):
     # a caption in json string format. Then a parse helper function is called to grab the right string
     # and return caption with hashtag as singular string.
     # Returns string
-    
+
     model = genai.GenerativeModel('gemini-1.5-flash', generation_config={"response_mime_type": "application/json"}, safety_settings=safety_settings)
-    prompt = quote['q'] + " - " + quote['a']  + """
-        Create a caption
+    prompt = quote + """
+        Create a caption that expands on the quote, no more than one sentence.
+        Also give me a quote title, no more than 2 words.
         Using this JSON scheme:
+            Quote Title = {"quote_title", str}
             Caption Text = {"caption_text", str},
             Hashtags = {"hashtags": str}
         1. caption should only have text no hashtags
@@ -193,11 +199,11 @@ def getCaption(quote):
     
     try:
         response = model.generate_content(prompt).text
-        caption = parseMessageText(response)
+        quote_title, caption = parseMessageText(response)
     except UnicodeEncodeError:
         caption = "Follow for more daily quotes and motivation. #power #mind #peace #motivation"
 
-    return caption
+    return quote_title, caption
 
 def getRandomVideo():
     # The getRandomVideo function checks to see if there are new videos for 4 different searches,
@@ -228,7 +234,7 @@ def getRandomMusic():
 def build(randomQuote, randomVideoID):
     # The build function is used to centralize the creation of new videos
     # based on quote recieved and video picked
-    
+
     try:
         videoName = combineVideoText(randomQuote['q'], randomQuote['a'], randomVideoID)
     except OSError:

@@ -1,3 +1,4 @@
 api/*
 *.mp4
 __pycache__
+*.json
