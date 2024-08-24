@@ -143,9 +143,9 @@ def upload_video(video_data):
 
 if __name__ == '__main__':
     video_data = {
-        "file": "video.mp4",
-        "title": "Best of memes!",
-        "description": "#shorts \n Giving you the hottest memes of the day with funny comments!",
-        "keywords":"meme,reddit",
+        "file": "",
+        "title": "",
+        "description": "#shorts ",
+        "keywords":"",
         "privacyStatus":"private"
     }
