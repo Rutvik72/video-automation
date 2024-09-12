@@ -1,3 +1,4 @@
+import datetime
 import random
 import requests
 import google.generativeai as genai
@@ -11,10 +12,11 @@ from time import gmtime, strftime
 import math
 import os
 from pathlib import Path
-from api.apikeys import GENAI_API_KEY, PEXEL_API_KEY
+import api.apikeys as HIDDEN
+import boto3
 
 # GenAi configuration
-genai.configure(api_key=GENAI_API_KEY)
+genai.configure(api_key=HIDDEN.GENAI_API_KEY)
 safety_settings = {
     genai.types.HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT : genai.types.HarmBlockThreshold.BLOCK_LOW_AND_ABOVE,
     genai.types.HarmCategory.HARM_CATEGORY_HARASSMENT : genai.types.HarmBlockThreshold.BLOCK_NONE,
@@ -22,13 +24,20 @@ safety_settings = {
     genai.types.HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT : genai.types.HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
 }
 
+# S3
+s3_client = boto3.client(
+    's3',
+    aws_access_key_id=HIDDEN.ACCESS_KEY,
+    aws_secret_access_key=HIDDEN.SECRET_ACCESS_KEY,
+    region_name=HIDDEN.REGION
+)
+
 # Constants
-idList = [4678261, 7297870, 6550972, 8045821, 5145199, 3226454, 5198956, 5544054, 5893890, 6521673, 5829173, 5829170, 5828488, 5829168, 5896379, 4812203, 5147455, 8856785, 8859849]
 # dir_path = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 # pathToVideos = os.path.join(dir_path, "assets\\videos\\")
 # pathTo_readytopost = os.path.join(dir_path, "src\\readytopost\\")
-pathToVideos = "./assets/videos/"
 pathTo_readytopost = "./src/readytopost/"
+pathToStaging = "./assets/staging/"
 
 # Text Constants
 textFont = "./assets/font/Lato-Black.ttf"
@@ -80,9 +89,9 @@ def soft_wrap_text(
     wrapped_text = textwrap.fill(text, width=max_chars)
     return wrapped_text
 
-def combineVideoText(quote, author, videoID):
+def combineVideoText(quote, author, randomVideoPath):
 
-    clip = me.VideoFileClip(pathToVideos + str(videoID) + ".mp4")
+    clip = me.VideoFileClip(randomVideoPath)
     clip_duration = clip.duration
 
     clipLength = 15/clip_duration
@@ -138,33 +147,48 @@ def parseMessageText(response):
         quote_caption = response_json['Caption Text']['caption_text'] + " " + response_json['Hashtags']['hashtags']
     return quote_title, quote_caption
 
-def videoIdInList(id):
-    if id not in idList:
-        idList.append(id)
-        return False
-    return True
-
-def checkForNewVideos(queryTag):
-    pexel = Pexels(PEXEL_API_KEY)
-    newVideosFlag = False
-    response = pexel.search_videos(query=queryTag, orientation='portrait', page=1, per_page=5)
+def checkForNewVideos():
+    pexel = Pexels(HIDDEN.PEXEL_API_KEY)
+    queryList = ['peaceful', 'cars', 'urban architecture', 'nature']
+    new_videos = []
     
-    for videos in response["videos"]:
-        id = videos["id"]
-        if not videoIdInList(id):
-            get_video = pexel.get_video(get_id=id)
-            minWidthIndex = 0
-            while get_video['video_files'][minWidthIndex]['width'] < 500:
-                minWidthIndex += 1
+    # Loop through each query
+    for query in queryList:
+        try:
+            # Use pexel.search_videos() to filter videos by 'portrait' orientation
+            response = pexel.search_videos(query=query, orientation='portrait', page=1, per_page=5)
+            
+            if response['videos']:  # Check if the response contains videos
+                videos = response['videos']
+                
+                # Process each video
+                for video in videos:
+                    video_id = video['id']
+                    video_file_name = f"videos/{video_id}.mp4"
 
-            download_video = requests.get(get_video['video_files'][minWidthIndex]['link'], stream=True)
+                    # Check if the video already exists in the S3 bucket
+                    try:
+                        s3_client.head_object(Bucket=HIDDEN.BUCKET_NAME, Key=video_file_name)
+                        print(f"Video {video_id} already exists in S3.")
+                    except s3_client.exceptions.ClientError:
+                        # Select the appropriate video file with a width >= 500px
+                        minWidthIndex = 0
+                        while video['video_files'][minWidthIndex]['width'] < 500:
+                            minWidthIndex += 1
+                        video_url = video['video_files'][minWidthIndex]['link']
 
-            with open(pathToVideos + str(get_video["id"]) +".mp4", 'wb') as outfile:
-                for chunk in download_video.iter_content(chunk_size=256):
-                    outfile.write(chunk)
-            newVideosFlag = True
+                        # Download and upload the video to S3
+                        video_content = requests.get(video_url)
+                        if video_content.status_code == 200:
+                            s3_client.put_object(Bucket=HIDDEN.BUCKET_NAME, Key=video_file_name, Body=video_content.content)
+                            print(f"Uploaded new portrait video {video_id} to S3.")
+                            new_videos.append(video_id)
+        except Exception as e:
+            print(f"Error fetching videos for query {query}: {str(e)}")
 
-    return newVideosFlag
+    # Return whether any new videos were added
+    return bool(new_videos)
+
 
 ################
 # Getter functions
@@ -206,24 +230,38 @@ def getCaption(quote):
     return quote_title, caption
 
 def getRandomVideo():
-    # The getRandomVideo function checks to see if there are new videos for 4 different searches,
-    # if so, the new videos are downloaded to the assests/videos folder and the lastest one is picked,
-    # otherwise, it randomly selects a video from idList and returns it.
-    # Returns int
-
-    queryList = ['peaceful', "cars", "urban architecture", "nature"]
-    newVideoBool = False
-    for query in queryList:
-        newVideoBool = checkForNewVideos(query) | newVideoBool
-
-    if newVideoBool:
-        randomVideoId = idList[-1]
-    else:
-        randomVideoId = random.choice(idList)
+    # Call checkForNewVideos first
+    today = datetime.datetime.today().weekday()
     
-    print(idList)
+    if today == 4:  # 4 represents Friday
+        print("Today is Friday. Checking for new videos...")
+        new_videos_added = checkForNewVideos()
+    else:
+        print("Today is not Friday. Skipping video check.")
 
-    return randomVideoId
+    # List all video files in the 'videos' folder in S3
+    response = s3_client.list_objects_v2(Bucket=HIDDEN.BUCKET_NAME, Prefix='videos/')
+
+    if 'Contents' not in response:
+        raise Exception("No videos found in the S3 bucket.")
+    
+    # Get list of all .mp4 files
+    video_files = [item['Key'] for item in response['Contents'] if item['Key'].endswith('.mp4')]
+
+    if not video_files:
+        raise Exception("No video files found in the 'videos' folder.")
+    
+    # Select a random video
+    random_video_file = random.choice(video_files)
+
+    # # Lambda's /tmp directory to download the video
+    # local_video_path = f"/tmp/{random_video_file.split('/')[-1]}"
+    local_video_path = f"{pathToStaging}{random_video_file.split('/')[-1]}"
+    
+    # # Download the video from S3 into the /tmp directory
+    s3_client.download_file(HIDDEN.BUCKET_NAME, random_video_file, local_video_path)
+
+    return local_video_path  # Return local video path for processing
 
 def getRandomMusic():
     return
@@ -231,14 +269,14 @@ def getRandomMusic():
 ################
 #Builder Function
 ################
-def build(randomQuote, randomVideoID):
+def build(randomQuote, randomVideoPath):
     # The build function is used to centralize the creation of new videos
     # based on quote recieved and video picked
 
     try:
-        videoName = combineVideoText(randomQuote['q'], randomQuote['a'], randomVideoID)
+        videoName = combineVideoText(randomQuote['q'], randomQuote['a'], randomVideoPath)
     except OSError:
-        videoName = combineVideoText(randomQuote['q'], randomQuote['a'], randomVideoID)
+        videoName = combineVideoText(randomQuote['q'], randomQuote['a'], randomVideoPath)
 
     return videoName
 
