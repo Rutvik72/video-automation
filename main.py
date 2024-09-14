@@ -2,24 +2,45 @@ from builder import build, getCaption, getRandomVideo, getQuote
 from publisher import youtube
 
 # quote = "Prefer to be defeated in the presence of the wise than to excel among fools. - Dogen"
-videoPath = getRandomVideo()
-quote = getQuote()
-quoteStr = quote['q'] + " - " + quote['a']
+def lambda_handler(event, context):
+    try:
+        # Get a random video from S3 or local source
+        videoPath = getRandomVideo()
 
-quote_title, caption = getCaption(quoteStr)
-print(videoPath)
+        # Get a random quote
+        print("Grabbing Quote")
+        quote = getQuote()
+        quoteStr = quote['q'] + " - " + quote['a']
 
+        # Generate caption and title
+        print("Generating Title")
+        quote_title, caption = getCaption(quoteStr)
 
-videoName = build(quote, videoPath)
+        # Build the video with the quote
+        print("Building Video")
+        videoName = build(quote, videoPath)
 
-video_data = {
-    "video_title": quote_title,
-    "video_name": "./src/readytopost/" + videoName,
-    "quote": quoteStr,
-    "caption": caption
-}
+        # Prepare the data to publish the video
+        video_data = {
+            "video_title": quote_title,
+            "video_name": videoName,
+            "quote": quoteStr,
+            "caption": caption
+        }
 
-youtube(video_data)
+        # Publish the video to YouTube
+        print("Publishing Video")
+        youtube(video_data)
 
-# print(videoName)
-# print(caption)
+        return {
+            'statusCode': 200,
+            'body': f"Successfully created and published video: {videoName}"
+        }
+    
+    except Exception as e:
+        return {
+            'statusCode': 500,
+            'body': f"Error: {str(e)}"
+        }
+
+lambda_handler(200, "test")

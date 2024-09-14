@@ -12,7 +12,7 @@ from time import gmtime, strftime
 import math
 import os
 from pathlib import Path
-import api.apikeys as HIDDEN
+import apikeys as HIDDEN
 import boto3
 
 # GenAi configuration
@@ -36,11 +36,19 @@ s3_client = boto3.client(
 # dir_path = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 # pathToVideos = os.path.join(dir_path, "assets\\videos\\")
 # pathTo_readytopost = os.path.join(dir_path, "src\\readytopost\\")
-pathTo_readytopost = "./src/readytopost/"
-pathToStaging = "./assets/staging/"
+
+lambdaStaging = "/tmp/"
+
+flag = 0
+if flag:
+    pathTo_readytopost = "./src/readytopost/"
+    pathToStaging = "./assets/staging/"
+else:
+    pathTo_readytopost = lambdaStaging
+    pathToStaging = lambdaStaging
 
 # Text Constants
-textFont = "./assets/font/Lato-Black.ttf"
+textFont = "./Lato-Black.ttf"
 # print(textFont)
 # print(me.TextClip.list('font'))
 textFontSizeLambda = lambda clipWidth: pickFontSize(clipWidth)
@@ -76,24 +84,27 @@ def soft_wrap_text(
     letter_spacing: int, 
     font_family: str, 
     max_width: int):
+    print("Wraping text...")
 
     image_font = ImageFont.truetype(font_family, fontsize) 
     text_width = image_font.getlength(text) + (len(text)-1) * letter_spacing
+    print(image_font, text_width)
 
     letter_width = text_width / len(text)
+    print(letter_width)
 
     if text_width < max_width:
         return text
-
+    
     max_chars = max_width / letter_width
     wrapped_text = textwrap.fill(text, width=max_chars)
     return wrapped_text
 
 def combineVideoText(quote, author, randomVideoPath):
+    print("Combining video and text...")
 
     clip = me.VideoFileClip(randomVideoPath)
     clip_duration = clip.duration
-
     clipLength = 15/clip_duration
     if clipLength > 1:
         numOfClips = [clip] * math.ceil(clip_Length)
@@ -104,7 +115,7 @@ def combineVideoText(quote, author, randomVideoPath):
     clip = clip.fx(me.vfx.colorx, 0.5)
     width, height = clip.size[0], clip.size[1]
     textFontSize = textFontSizeLambda(width)
-
+    print(textFont)
     wrap_title = soft_wrap_text(quote,
                                 font_family=textFont,
                                 fontsize=textFontSize,
@@ -119,6 +130,7 @@ def combineVideoText(quote, author, randomVideoPath):
     
     wrapped_text = wrap_title + "\n\n" + wrap_author
     pprint.pp(wrapped_text)
+    print(wrapped_text)
     
     txt_clip = (me.TextClip(wrapped_text, 
                             fontsize=textFontSize,
@@ -134,9 +146,10 @@ def combineVideoText(quote, author, randomVideoPath):
     videoName = strftime("%Y-%m-%d-%H-%M-%S", gmtime())
     video.write_videofile(pathTo_readytopost + videoName + ".mp4", fps=30)
     
-    return  videoName + ".mp4"
+    return  pathTo_readytopost + videoName + ".mp4"
 
 def parseMessageText(response):
+    print("Parsing Message Text...")
     response_json = json.loads(response)
     print(response_json)
     try:
@@ -148,6 +161,7 @@ def parseMessageText(response):
     return quote_title, quote_caption
 
 def checkForNewVideos():
+    print("Checking for videos...")
     pexel = Pexels(HIDDEN.PEXEL_API_KEY)
     queryList = ['peaceful', 'cars', 'urban architecture', 'nature']
     new_videos = []
@@ -194,6 +208,7 @@ def checkForNewVideos():
 # Getter functions
 ################
 def getQuote():
+    print("Getting Quote...")
     # The getQuote function calls the ZenQuote API which returns a json
     # Returns string in json formate
 
@@ -209,6 +224,7 @@ def getCaption(quote):
     # and return caption with hashtag as singular string.
     # Returns string
 
+    print("Creating Caption...")
     model = genai.GenerativeModel('gemini-1.5-flash', generation_config={"response_mime_type": "application/json"}, safety_settings=safety_settings)
     prompt = quote + """
         Create a caption that expands on the quote, no more than one sentence.
@@ -230,6 +246,7 @@ def getCaption(quote):
     return quote_title, caption
 
 def getRandomVideo():
+    print("Finding Ramdom Video...")
     # Call checkForNewVideos first
     today = datetime.datetime.today().weekday()
     
@@ -255,7 +272,6 @@ def getRandomVideo():
     random_video_file = random.choice(video_files)
 
     # # Lambda's /tmp directory to download the video
-    # local_video_path = f"/tmp/{random_video_file.split('/')[-1]}"
     local_video_path = f"{pathToStaging}{random_video_file.split('/')[-1]}"
     
     # # Download the video from S3 into the /tmp directory
@@ -271,12 +287,9 @@ def getRandomMusic():
 ################
 def build(randomQuote, randomVideoPath):
     # The build function is used to centralize the creation of new videos
-    # based on quote recieved and video picked
-
-    try:
-        videoName = combineVideoText(randomQuote['q'], randomQuote['a'], randomVideoPath)
-    except OSError:
-        videoName = combineVideoText(randomQuote['q'], randomQuote['a'], randomVideoPath)
+    # based on quote recieved and video picked\
+    print("Building...")
+    videoName = combineVideoText(randomQuote['q'], randomQuote['a'], randomVideoPath)
 
     return videoName
 
