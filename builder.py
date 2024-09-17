@@ -49,8 +49,6 @@ else:
 
 # Text Constants
 textFont = "./Lato-Black.ttf"
-# print(textFont)
-# print(me.TextClip.list('font'))
 textFontSizeLambda = lambda clipWidth: pickFontSize(clipWidth)
 textColor = 'yellow'
 textCharSpace = 5
@@ -84,14 +82,11 @@ def soft_wrap_text(
     letter_spacing: int, 
     font_family: str, 
     max_width: int):
-    print("Wraping text...")
 
     image_font = ImageFont.truetype(font_family, fontsize) 
     text_width = image_font.getlength(text) + (len(text)-1) * letter_spacing
-    print(image_font, text_width)
 
     letter_width = text_width / len(text)
-    print(letter_width)
 
     if text_width < max_width:
         return text
@@ -101,7 +96,6 @@ def soft_wrap_text(
     return wrapped_text
 
 def combineVideoText(quote, author, randomVideoPath):
-    print("Combining video and text...")
 
     clip = me.VideoFileClip(randomVideoPath)
     clip_duration = clip.duration
@@ -115,7 +109,6 @@ def combineVideoText(quote, author, randomVideoPath):
     clip = clip.fx(me.vfx.colorx, 0.5)
     width, height = clip.size[0], clip.size[1]
     textFontSize = textFontSizeLambda(width)
-    print(textFont)
     wrap_title = soft_wrap_text(quote,
                                 font_family=textFont,
                                 fontsize=textFontSize,
@@ -129,8 +122,6 @@ def combineVideoText(quote, author, randomVideoPath):
                                 max_width=width-100)
     
     wrapped_text = wrap_title + "\n\n" + wrap_author
-    pprint.pp(wrapped_text)
-    print(wrapped_text)
     
     txt_clip = (me.TextClip(wrapped_text, 
                             fontsize=textFontSize,
@@ -144,14 +135,12 @@ def combineVideoText(quote, author, randomVideoPath):
     txt_fading = txt_clip.crossfadein(1)
     video = me.CompositeVideoClip([clip, txt_fading])
     videoName = strftime("%Y-%m-%d-%H-%M-%S", gmtime())
-    video.write_videofile(pathTo_readytopost + videoName + ".mp4", fps=30)
+    video.write_videofile(pathTo_readytopost + videoName + ".mp4", fps=30, audio=False)
     
     return  pathTo_readytopost + videoName + ".mp4"
 
 def parseMessageText(response):
-    print("Parsing Message Text...")
     response_json = json.loads(response)
-    print(response_json)
     try:
         quote_title = response_json["quote_title"]
         quote_caption = response_json['caption_text'] + " " + response_json['hashtags']
@@ -161,7 +150,6 @@ def parseMessageText(response):
     return quote_title, quote_caption
 
 def checkForNewVideos():
-    print("Checking for videos...")
     pexel = Pexels(HIDDEN.PEXEL_API_KEY)
     queryList = ['peaceful', 'cars', 'urban architecture', 'nature']
     new_videos = []
@@ -208,7 +196,6 @@ def checkForNewVideos():
 # Getter functions
 ################
 def getQuote():
-    print("Getting Quote...")
     # The getQuote function calls the ZenQuote API which returns a json
     # Returns string in json formate
 
@@ -224,7 +211,6 @@ def getCaption(quote):
     # and return caption with hashtag as singular string.
     # Returns string
 
-    print("Creating Caption...")
     model = genai.GenerativeModel('gemini-1.5-flash', generation_config={"response_mime_type": "application/json"}, safety_settings=safety_settings)
     prompt = quote + """
         Create a caption that expands on the quote, no more than one sentence.
@@ -246,7 +232,6 @@ def getCaption(quote):
     return quote_title, caption
 
 def getRandomVideo():
-    print("Finding Ramdom Video...")
     # Call checkForNewVideos first
     today = datetime.datetime.today().weekday()
     

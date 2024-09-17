@@ -1,14 +1,15 @@
 FROM public.ecr.aws/lambda/python:3.10
 RUN pip install boto3 google-generativeai httplib2 moviepy oauth2client pexels-api-py pillow requests imageio imageio-ffmpeg google-api-python-client
-COPY main.py ./
-COPY publisher.py ./
+COPY main.py .
+COPY publisher.py .
 COPY assets/* ./assets/*
-COPY builder.py ./
-COPY upload_video.py ./
-COPY apikeys.py ./
-COPY client_secrets.json ./
-COPY main.py-oauth2.json ./
-COPY Lato-Black.ttf ./
+COPY builder.py .
+COPY upload_video.py .
+COPY apikeys.py .
+COPY client_secrets.json .
+COPY main.py-oauth2.json .
+COPY Lato-Black.ttf .
+COPY main.py-oauth2.json .
 
 RUN yum update \
     && yum install -qq -y wget rpm tar ffmpeg, ImageMagick\

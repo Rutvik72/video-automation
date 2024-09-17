@@ -58,8 +58,12 @@ def get_authenticated_service(args):
   flow = flow_from_clientsecrets(CLIENT_SECRETS_FILE,
     scope=YOUTUBE_UPLOAD_SCOPE,
     message=MISSING_CLIENT_SECRETS_MESSAGE)
+  flag = 1
+  if flag:
+    storage = Storage("main.py-oauth2.json")
+  else:
+    storage = Storage("%s-oauth2.json" % sys.argv[0])
 
-  storage = Storage("%s-oauth2.json" % sys.argv[0])
   credentials = storage.get()
 
   if credentials is None or credentials.invalid:
@@ -131,6 +135,7 @@ def resumable_upload(insert_request):
 
 def upload_video(video_data):
   args = argparser.parse_args()
+  args.noauth_local_webserver = True
   if not os.path.exists(video_data['file']):
     print(video_data['file'])
     exit("Please specify a valid file using the --file= parameter.")
